@@ -25,8 +25,15 @@ int main() {
 
   Eigen::Matrix<double, 8, 3> line_points;
 
-  line_points << 113, 5, 1, 223, 846, 1, 435, 2, 1, 707, 843, 1, 2, 706, 1, 841,
-      780, 1, 4, 6, 1, 841, 445, 1;
+  line_points << 
+	  113, 5, 1, 
+	  223, 846, 1, 
+	  435, 2, 1, 
+	  707, 843, 1, 
+	  2, 706, 1, 
+	  841, 780, 1, 
+	  4, 6, 1, 
+	  841, 445, 1;
 
   Eigen::Matrix<double, 4, 3> lines;
   for (int i = 0; i < 8; i += 2) {
@@ -58,12 +65,12 @@ int main() {
   Eigen::FullPivLU<Eigen::MatrixXd> lu3(A3);
   Eigen::Vector3d image_of_line_at_inf = lu3.kernel();
 
-  Eigen::Matrix3d H_aff;
-  H_aff << 1, 0, 0, 0, 1, 0, image_of_line_at_inf.transpose();
+  Eigen::Matrix3d H_ar;
+  H_ar << 1, 0, 0, 0, 1, 0, image_of_line_at_inf.transpose();
 
   // affine rectification.
   cv::Mat img_aff;
-  ApplyHomography(img, img_aff, H_aff);
+  ApplyHomography(img, img_aff, H_ar);
   cv::resize(img_aff, img_aff, cv::Size(), 0.25, 0.25);
   cv::imshow("affine", img_aff);
   cv::waitKey(1);
@@ -81,28 +88,37 @@ int main() {
   Eigen::Vector3d m2 = lines.row(2);
 
   Eigen::Matrix<double, 2, 3> ortho_constraint;
-  ortho_constraint << l1(0) * m1(0), l1(0) * m1(1) + l1(1) * m1(0),
-      l1(1) * m1(1), l2(0) * m2(0), l2(0) * m2(1) + l2(1) * m2(0),
+  ortho_constraint << 
+	  l1(0) * m1(0), 
+	  l1(0) * m1(1) + l1(1) * m1(0),
+      l1(1) * m1(1), 
+
+	  l2(0) * m2(0), 
+	  l2(0) * m2(1) + l2(1) * m2(0),
       l2(1) * m2(1);
 
   Eigen::JacobiSVD<Eigen::Matrix<double, 2, 3>> svd(
       ortho_constraint, Eigen::ComputeFullU | Eigen::ComputeFullV);
-  Eigen::Vector3d s = svd.matrixV().col(svd.matrixV().cols() - 1);
-  Eigen::Matrix2d S;
-  S << s(0), s(1), s(1), s(2);
+  Eigen::Vector3d a = svd.matrixV().col(svd.matrixV().cols() - 1);
+  Eigen::Matrix2d A_;
+  A_ << a(0), a(1),
+	a(1), a(2);
 
-  Eigen::JacobiSVD<Eigen::Matrix2d> svd2(S, Eigen::ComputeFullU |
+  Eigen::JacobiSVD<Eigen::Matrix2d> svd2(A_, Eigen::ComputeFullU |
                                                 Eigen::ComputeFullV);
   Eigen::MatrixXd U = svd2.matrixU();
   Eigen::MatrixXd D = svd2.singularValues().asDiagonal();
   Eigen::Matrix2d K = U * D.cwiseSqrt() * U.transpose();
 
-  Eigen::Matrix3d H_metric;
-  H_metric << K(0, 0), K(0, 1), 0, K(1, 0), K(1, 1), 0, 0, 0, 1;
+  Eigen::Matrix3d H_mr;
+  H_mr << 
+	  K(0, 0), K(0, 1), 0, 
+	  K(1, 0), K(1, 1), 0, 
+	  0, 0, 1;
 
   // metric rectification.
   cv::Mat img_metric;
-  ApplyHomography(img, img_metric, H_metric.inverse() * H_aff);
+  ApplyHomography(img, img_metric, H_mr.inverse() * H_ar);
   cv::resize(img_metric, img_metric, cv::Size(), 0.25, 0.25);
   cv::imshow("metric", img_metric);
   cv::moveWindow("metric", 1000, 0);
