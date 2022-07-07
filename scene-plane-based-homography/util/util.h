@@ -3,7 +3,7 @@
 
 #include <string>
 
-#define PROJECT_PATH "/mnt/d/edward/gitrepo/mvg-example/scene-plane-based-fundamental-matrix"
+#define PROJECT_PATH "/mnt/d/edward/gitrepo/mvg-example/scene-plane-based-homography"
 
 namespace util {
 

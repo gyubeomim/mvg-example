@@ -22,7 +22,7 @@ include_directories(
   )
 
 add_executable(scene
-  src/scene-plane-based-fundamental-matrix.cc
+  src/scene-plane-based-homography.cc
   )
 target_link_libraries(scene
   ${OpenCV_LIBS}
