@@ -231,10 +231,10 @@ DecomposeFundamentalMatrix(Eigen::Matrix3d K, Eigen::Matrix3d F,
   }
 
   // camera centers.
-  Eigen::Vector3d C1 = -R1.transpose() * t1;
-  Eigen::Vector3d C2 = -R2.transpose() * t2;
-  Eigen::Vector3d C3 = -R3.transpose() * t3;
-  Eigen::Vector3d C4 = -R4.transpose() * t4;
+  Eigen::Vector3d T1 = -R1.transpose() * t1;
+  Eigen::Vector3d T2 = -R2.transpose() * t2;
+  Eigen::Vector3d T3 = -R3.transpose() * t3;
+  Eigen::Vector3d T4 = -R4.transpose() * t4;
 
   // check four possible solutions.
   Eigen::Matrix<double, 3, 4> P1;
@@ -242,20 +242,20 @@ DecomposeFundamentalMatrix(Eigen::Matrix3d K, Eigen::Matrix3d F,
       K * Eigen::VectorXd::Zero(3, 1);
 
   Eigen::Matrix<double, 3, 4> P2;
-  P2 << K * R1 * Eigen::MatrixXd::Identity(3, 3), K * R1 * -C1;
+  P2 << K * R1 * Eigen::MatrixXd::Identity(3, 3), K * R1 * -T1;
   Eigen::MatrixXd X1 = Triangulation(P1, P2, x1, x2);
 
-  P2 << K * R2 * Eigen::MatrixXd::Identity(3, 3), K * R2 * -C2;
+  P2 << K * R2 * Eigen::MatrixXd::Identity(3, 3), K * R2 * -T2;
   Eigen::MatrixXd X2 = Triangulation(P1, P2, x1, x2);
 
-  P2 << K * R3 * Eigen::MatrixXd::Identity(3, 3), K * R3 * -C3;
+  P2 << K * R3 * Eigen::MatrixXd::Identity(3, 3), K * R3 * -T3;
   Eigen::MatrixXd X3 = Triangulation(P1, P2, x1, x2);
 
-  P2 << K * R4 * Eigen::MatrixXd::Identity(3, 3), K * R4 * -C4;
+  P2 << K * R4 * Eigen::MatrixXd::Identity(3, 3), K * R4 * -T4;
   Eigen::MatrixXd X4 = Triangulation(P1, P2, x1, x2);
 
   std::vector<Eigen::Matrix3d> Rs;
-  std::vector<Eigen::Vector3d> Cs;
+  std::vector<Eigen::Vector3d> Ts;
   std::vector<Eigen::MatrixXd> Xs;
 
   Rs.push_back(R1);
@@ -263,10 +263,10 @@ DecomposeFundamentalMatrix(Eigen::Matrix3d K, Eigen::Matrix3d F,
   Rs.push_back(R3);
   Rs.push_back(R4);
 
-  Cs.push_back(C1);
-  Cs.push_back(C2);
-  Cs.push_back(C3);
-  Cs.push_back(C4);
+  Ts.push_back(T1);
+  Ts.push_back(T2);
+  Ts.push_back(T3);
+  Ts.push_back(T4);
 
   Xs.push_back(X1);
   Xs.push_back(X2);
@@ -280,7 +280,7 @@ DecomposeFundamentalMatrix(Eigen::Matrix3d K, Eigen::Matrix3d F,
 
     for (int j = 0; j < Xs[i].rows(); j++) {
       Eigen::Vector3d Xs_vec = Xs[i].row(j);
-      Eigen::VectorXd a = Rs[i].row(2) * (Xs_vec - Cs[i]);
+      Eigen::VectorXd a = Rs[i].row(2) * (Xs_vec - Ts[i]);
       Eigen::VectorXd b = Xs[i].row(j).col(2);
       if (a.minCoeff() > 0 && b.minCoeff() > 0) {
         count += 1;
@@ -293,17 +293,17 @@ DecomposeFundamentalMatrix(Eigen::Matrix3d K, Eigen::Matrix3d F,
       std::max_element(valids.begin(), valids.end()) - valids.begin();
 
   Eigen::Matrix3d R = Rs[best_idx];
-  Eigen::Vector3d C = Cs[best_idx];
+  Eigen::Vector3d t = Ts[best_idx];
 
-  return std::make_tuple(R, C);
+  return std::make_tuple(R, t);
 }
 
 std::tuple<Eigen::Matrix3d, Eigen::Matrix3d>
-ComputeStereoHomography(Eigen::Matrix3d R, Eigen::Vector3d C,
+ComputeStereoHomography(Eigen::Matrix3d R, Eigen::Vector3d t,
                         Eigen::Matrix3d K) {
   Eigen::Vector3d rx, ry, rz, rz_tilde;
 
-  rx = C / C.norm();
+  rx = t / t.norm();
   rz_tilde << 0, 0, 1;
 
   Eigen::Vector3d tmp = rz_tilde - rz_tilde.dot(rx) * rx;
@@ -369,13 +369,13 @@ int main() {
   DrawEpipolarLines(img_left, img_right, x1_best, x2_best, F);
 
   Eigen::Matrix3d R;
-  Eigen::Vector3d C;
+  Eigen::Vector3d t;
 
-  std::tie(R, C) = DecomposeFundamentalMatrix(K, F, x1_best, x2_best);
+  std::tie(R, t) = DecomposeFundamentalMatrix(K, F, x1_best, x2_best);
 
   Eigen::Matrix3d H1;
   Eigen::Matrix3d H2;
-  std::tie(H1, H2) = ComputeStereoHomography(R, C, K);
+  std::tie(H1, H2) = ComputeStereoHomography(R, t, K);
 
   cv::Mat img_left_warped, img_right_warped;
   ApplyHomography(img_left, img_left_warped, H1);
